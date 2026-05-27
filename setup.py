@@ -22,13 +22,13 @@ from pathlib import Path
 IS_WIN = platform.system() == "Windows"
 
 
-def pip(venv, *args):
-    pip_exe = venv / ("Scripts/pip.exe" if IS_WIN else "bin/pip")
-    subprocess.run([str(pip_exe)] + list(args), check=True)
-
-
 def python_exe_in_venv(venv):
     return venv / ("Scripts/python.exe" if IS_WIN else "bin/python")
+
+
+def pip(venv, *args):
+    venv_python = python_exe_in_venv(venv)
+    subprocess.run([str(venv_python), "-m", "pip"] + list(args), check=True)
 
 
 def setup(python_exe, ext_dir, gpu_sm):
@@ -38,12 +38,6 @@ def setup(python_exe, ext_dir, gpu_sm):
     subprocess.run([str(python_exe), "-m", "venv", str(venv)], check=True)
 
     venv_python = python_exe_in_venv(venv)
-
-    # ------------------------------------------------------------------ #
-    # pip / setuptools / wheel
-    # ------------------------------------------------------------------ #
-    print("[setup] Upgrading pip, setuptools, wheel ...")
-    pip(venv, "install", "--upgrade", "pip", "setuptools", "wheel")
 
     # ------------------------------------------------------------------ #
     # PyTorch — index chosen by GPU compute capability
