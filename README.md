@@ -19,7 +19,7 @@ Weights are ~6GB. You'll need around 6GB of VRAM.
 
 This extension works in the **Workflows** tab.
 
-1. Drag an **Image** node onto the canvas and point it at `placeholder.png` (included in this repo — it's just a 1×1 pixel image, it won't affect your output)
+1. Drag an **Image** node onto the canvas and point it at 'fake_image.png` (included in this repo — it's just a 1×1 pixel image, it won't affect your output)
 2. Drag a **Generate Image** node onto the canvas and connect the Image node to it
 3. Type your prompt in the **Prompt** field on the Generate Image node
 4. Hit **Run**
