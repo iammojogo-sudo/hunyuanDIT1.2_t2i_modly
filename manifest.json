@@ -17,11 +17,17 @@
     {
       "id": "generate",
       "name": "Generate Image",
-      "input": "text",
+      "input": "image",
       "output": "image",
       "hf_repo": "Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers-Distilled",
       "download_check": "model_index.json",
       "params_schema": [
+        {
+          "id": "prompt",
+          "label": "Prompt",
+          "type": "string",
+          "required": true
+        },
         {
           "id": "negative_prompt",
           "label": "Negative Prompt",
