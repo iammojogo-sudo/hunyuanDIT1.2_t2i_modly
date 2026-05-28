@@ -105,19 +105,35 @@ class HunyuanDiT12Generator(BaseGenerator):
 
         params = params or {}
 
-        # Modly passes the primary input (the prompt) as image_bytes
-        # (base64-decoded UTF-8 text from image_b64). params only carries
-        # the secondary schema fields (width, height, steps, etc.).
+        # Debug: log exactly what the runner is sending us
+        print("[HunyuanDiT12Generator] image_bytes len=%d repr=%r" % (
+            len(image_bytes) if image_bytes else 0,
+            (image_bytes[:80] if image_bytes else b""),
+        ))
+        print("[HunyuanDiT12Generator] params=%r" % params)
+        print("[HunyuanDiT12Generator] model loaded=%s" % (self._model is not None))
+
+        # Ensure model is loaded even if the load action was never sent
+        if self._model is None:
+            self.load()
+
+        # Modly passes the primary input through image_b64 (base64-encoded
+        # UTF-8 text for text/prompt input types). Also check every
+        # reasonable params key as fallback.
         prompt = ""
-        if image_bytes:
+        if image_bytes is not None and len(image_bytes) > 0:
             try:
                 prompt = image_bytes.decode("utf-8").strip()
-            except Exception:
-                pass
+            except Exception as decode_err:
+                print("[HunyuanDiT12Generator] image_bytes decode failed: %s" % decode_err)
         if not prompt:
-            prompt = params.get("prompt", "")
+            for key in ("prompt", "text", "input", "value"):
+                prompt = params.get(key, "")
+                if prompt:
+                    break
+        print("[HunyuanDiT12Generator] resolved prompt=%r" % prompt)
         if not prompt:
-            raise ValueError("A prompt is required for generation.")
+            raise ValueError("No prompt received. image_bytes=%r params=%r" % (image_bytes, params))
 
         negative_prompt = params.get("negative_prompt") or None
         width           = _safe_int(params.get("width"),  1024)
