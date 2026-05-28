@@ -20,7 +20,7 @@ const processor = async (input, params, context) => {
             "Please Repair the extension."
         );
 
-    const workerScript = path.join(extDir, "generator_worker.py");
+    const workerScript = path.join(extDir, "generator.py");
 
     const modelsDir = process.env.MODELS_DIR ||
         path.join(os.homedir(), ".modly", "models");
