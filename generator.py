@@ -105,9 +105,19 @@ class HunyuanDiT12Generator(BaseGenerator):
 
         params = params or {}
 
-        prompt = params.get("prompt", "")
+        # Modly passes the primary input (the prompt) as image_bytes
+        # (base64-decoded UTF-8 text from image_b64). params only carries
+        # the secondary schema fields (width, height, steps, etc.).
+        prompt = ""
+        if image_bytes:
+            try:
+                prompt = image_bytes.decode("utf-8").strip()
+            except Exception:
+                pass
         if not prompt:
-            raise ValueError("prompt is required")
+            prompt = params.get("prompt", "")
+        if not prompt:
+            raise ValueError("A prompt is required for generation.")
 
         negative_prompt = params.get("negative_prompt") or None
         width           = _safe_int(params.get("width"),  1024)
