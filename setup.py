@@ -71,6 +71,8 @@ def setup(python_exe, ext_dir, gpu_sm):
         "safetensors",
         "Pillow",
         "numpy",
+        "tiktoken",
+        "protobuf",
     )
 
     # ------------------------------------------------------------------ #
