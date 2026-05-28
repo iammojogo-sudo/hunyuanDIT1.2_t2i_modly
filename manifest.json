@@ -23,12 +23,6 @@
       "download_check": "model_index.json",
       "params_schema": [
         {
-          "id": "prompt",
-          "label": "Prompt",
-          "type": "string",
-          "required": true
-        },
-        {
           "id": "negative_prompt",
           "label": "Negative Prompt",
           "type": "string"
