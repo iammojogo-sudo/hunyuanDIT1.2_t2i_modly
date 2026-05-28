@@ -17,7 +17,7 @@
     {
       "id": "generate",
       "name": "Generate Image",
-      "input": "prompt",
+      "input": "text",
       "output": "image",
       "hf_repo": "Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers-Distilled",
       "download_check": "model_index.json",
