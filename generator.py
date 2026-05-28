@@ -155,9 +155,20 @@ class HunyuanDiT12Generator(BaseGenerator):
         self._check_cancelled(cancel_event)
 
         self._report(progress_cb, 98, "Saving image ...")
-        self.outputs_dir.mkdir(parents=True, exist_ok=True)
+
+        # self.outputs_dir is None for prompt-input generators (Modly derives
+        # it from the workspace input image, which does not exist for t2i).
+        # Fall back to a stable absolute path from model_dir:
+        #   model_dir = {ModlyData}/models/{ext_id}/generate/
+        #   out_dir   = {ModlyData}/outputs/{ext_id}/
+        if self.outputs_dir is not None:
+            out_dir = self.outputs_dir
+        else:
+            out_dir = self.model_dir.parent.parent.parent / "outputs" / self.MODEL_ID
+
+        out_dir.mkdir(parents=True, exist_ok=True)
         out_name = "hunyuandit_%d_%s.png" % (int(time.time()), uuid.uuid4().hex[:8])
-        out_path = self.outputs_dir / out_name
+        out_path = out_dir / out_name
         image.save(str(out_path), format="PNG")
 
         self._report(progress_cb, 100, "Done")
