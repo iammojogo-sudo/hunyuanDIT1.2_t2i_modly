@@ -18,8 +18,11 @@ def pip(venv, *args):
 def setup(python_exe, ext_dir, gpu_sm):
     venv = ext_dir / "venv"
 
-    print("creating venv...")
-    subprocess.run([str(python_exe), "-m", "venv", str(venv)], check=True)
+    if not venv.exists():
+        print("creating venv...")
+        subprocess.run([str(python_exe), "-m", "venv", str(venv)], check=True)
+    else:
+        print("venv exists, skipping creation")
 
     if gpu_sm >= 100:
         index = "https://download.pytorch.org/whl/cu128"
