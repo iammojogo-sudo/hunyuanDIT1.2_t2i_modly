@@ -1,210 +1,128 @@
+"""
+generator_worker.py — standalone worker spawned by processor.js.
+
+Args: prompt  params_json  models_dir  workspace_dir
+
+Communicates via newline-delimited JSON on stdout.
+All other prints go to stderr (forwarded to context.log by processor.js).
+"""
+
 import io
+import json
 import os
 import random
 import sys
-import threading
 import time
 import uuid
 from pathlib import Path
 
-from PIL import Image
 
-from services.generators.base import BaseGenerator, smooth_progress
-
-
-# Redirect print to stderr so stdout stays clean for the JSON runner protocol.
-_print = print
+def send(msg: dict) -> None:
+    sys.stdout.write(json.dumps(msg) + "\n")
+    sys.stdout.flush()
 
 
-def print(*args, **kwargs):
-    kwargs.setdefault("file", sys.stderr)
-    _print(*args, **kwargs)
+def log(message: str) -> None:
+    send({"type": "log", "message": message})
 
 
-_HF_REPO_ID = "Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers-Distilled"
+def progress(pct: int, step: str = "") -> None:
+    send({"type": "progress", "pct": pct, "step": step})
 
 
-def _safe_float(val, default):
+def main() -> None:
+    if len(sys.argv) < 5:
+        send({"type": "error", "message": "Usage: generator_worker.py <prompt> <params_json> <models_dir> <workspace_dir>"})
+        sys.exit(1)
+
+    prompt        = sys.argv[1]
+    params        = json.loads(sys.argv[2]) if sys.argv[2] else {}
+    models_dir    = Path(sys.argv[3])
+    workspace_dir = Path(sys.argv[4])
+
+    model_dir = models_dir / "hunyuandit_1_2_t2i" / "generate"
+
+    negative_prompt = params.get("negative_prompt") or None
+    width           = int(params.get("width",  1024))
+    height          = int(params.get("height", 1024))
+    steps           = int(params.get("steps",  25))
+    guidance_scale  = float(params.get("guidance_scale", 6.0))
+    seed_val        = int(params.get("seed", 0))
+    if seed_val == 0:
+        seed_val = random.randint(1, 2 ** 31 - 1)
+
+    progress(3, "Checking model weights...")
+
+    if not model_dir.exists() or not (model_dir / "model_index.json").exists():
+        send({"type": "error", "message": f"Model weights not found at {model_dir}. Download them from the Extensions page first."})
+        sys.exit(1)
+
+    progress(5, "Loading pipeline...")
+    log(f"Loading HunyuanDiT from {model_dir}")
+
     try:
-        return float(val)
-    except (TypeError, ValueError):
-        return default
-
-
-def _safe_int(val, default):
-    try:
-        return int(val)
-    except (TypeError, ValueError):
-        return default
-
-
-class HunyuanDiT12Generator(BaseGenerator):
-    MODEL_ID     = "hunyuandit_1_2_t2i"
-    DISPLAY_NAME = "HunyuanDiT v1.2 Text-to-Image"
-    VRAM_GB      = 6
-
-    # ------------------------------------------------------------------
-    # Download checks
-    # ------------------------------------------------------------------
-
-    def is_downloaded(self):
-        if self.download_check:
-            return (self.model_dir / self.download_check).exists()
-        return (self.model_dir / "model_index.json").exists()
-
-    # ------------------------------------------------------------------
-    # Load / unload
-    # ------------------------------------------------------------------
-
-    def load(self):
-        if self._model is not None:
-            return
-
-        if not self.is_downloaded():
-            self._download_weights()
-
         import torch
         from diffusers import HunyuanDiTPipeline
+    except ImportError as e:
+        send({"type": "error", "message": f"Import failed: {e}. Run Repair on the extension."})
+        sys.exit(1)
 
-        self._device = "cuda" if torch.cuda.is_available() else "cpu"
-        self._dtype  = torch.float16 if self._device == "cuda" else torch.float32
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    dtype  = torch.float16 if device == "cuda" else torch.float32
 
-        print("[HunyuanDiT12Generator] Loading pipeline from %s ..." % self.model_dir)
-
+    try:
         pipe = HunyuanDiTPipeline.from_pretrained(
-            str(self.model_dir),
+            str(model_dir),
             local_files_only=True,
-            torch_dtype=self._dtype,
-        ).to(self._device)
+            torch_dtype=dtype,
+        ).to(device)
+    except Exception as e:
+        send({"type": "error", "message": f"Failed to load pipeline: {e}"})
+        sys.exit(1)
 
-        try:
-            pipe.set_progress_bar_config(disable=True)
-        except Exception:
-            pass
+    try:
+        pipe.set_progress_bar_config(disable=True)
+    except Exception:
+        pass
 
-        self._model = pipe
-        print("[HunyuanDiT12Generator] Loaded on %s." % self._device)
+    progress(15, f"Generating on {device}...")
+    log(f"Prompt: {prompt!r}  seed={seed_val}  {width}x{height}  steps={steps}")
 
-    def unload(self):
-        self._model  = None
-        self._device = None
-        self._dtype  = None
-        try:
-            import torch
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-        except ImportError:
-            pass
+    generator = torch.Generator(device=device).manual_seed(seed_val)
 
-    # ------------------------------------------------------------------
-    # Generate
-    # ------------------------------------------------------------------
-
-    def generate(self, image_bytes, params, progress_cb=None, cancel_event=None):
-        import torch
-
-        params = params or {}
-
-        # Ensure model is loaded even if the load action was never sent
-        if self._model is None:
-            self.load()
-
-        # Prompt comes from params["prompt"] (typed in the node's params panel).
-        # image_bytes is the connected Image node's file — it arrives but is ignored.
-        prompt = params.get("prompt", "").strip()
-        if not prompt:
-            raise ValueError("prompt is required — type it in the node's Prompt field.")
-
-        negative_prompt = params.get("negative_prompt") or None
-        width           = _safe_int(params.get("width"),  1024)
-        height          = _safe_int(params.get("height"), 1024)
-        steps           = _safe_int(params.get("steps"),  25)
-        guidance_scale  = _safe_float(params.get("guidance_scale"), 6.0)
-        seed_val        = _safe_int(params.get("seed"), 0)
-        if seed_val == 0:
-            seed_val = random.randint(1, 2 ** 31 - 1)
-
-        self._report(progress_cb, 5, "Starting generation ...")
-        self._check_cancelled(cancel_event)
-
-        generator = torch.Generator(device=self._device).manual_seed(seed_val)
-
-        self._report(progress_cb, 10, "Generating image ...")
-
-        stop_evt        = threading.Event()
-        progress_thread = None
-        if progress_cb:
-            progress_thread = threading.Thread(
-                target=smooth_progress,
-                args=(progress_cb, 10, 95, "Generating image ...", stop_evt),
-                daemon=True,
+    try:
+        with torch.inference_mode():
+            out = pipe(
+                prompt=prompt,
+                negative_prompt=negative_prompt,
+                width=width,
+                height=height,
+                num_inference_steps=steps,
+                guidance_scale=guidance_scale,
+                generator=generator,
             )
-            progress_thread.start()
+        image = out.images[0]
+    except Exception as e:
+        send({"type": "error", "message": f"Generation failed: {e}"})
+        sys.exit(1)
 
-        try:
-            with torch.inference_mode():
-                out = self._model(
-                    prompt=prompt,
-                    negative_prompt=negative_prompt,
-                    width=width,
-                    height=height,
-                    num_inference_steps=steps,
-                    guidance_scale=guidance_scale,
-                    generator=generator,
-                )
-            image = out.images[0]
-        finally:
-            stop_evt.set()
-            if progress_thread:
-                progress_thread.join(timeout=1.0)
+    progress(95, "Saving image...")
 
-        self._check_cancelled(cancel_event)
+    out_dir = workspace_dir / "Workflows"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_name = "hunyuandit_%d_%s.png" % (int(time.time()), uuid.uuid4().hex[:8])
+    out_path = out_dir / out_name
 
-        self._report(progress_cb, 98, "Saving image ...")
-
-        # self.outputs_dir is None for prompt-input generators (Modly derives
-        # it from the workspace input image, which does not exist for t2i).
-        # Fall back to a stable absolute path from model_dir:
-        #   model_dir = {ModlyData}/models/{ext_id}/generate/
-        #   out_dir   = {ModlyData}/outputs/{ext_id}/
-        if self.outputs_dir is not None:
-            out_dir = self.outputs_dir
-        else:
-            out_dir = self.model_dir.parent.parent.parent / "outputs" / self.MODEL_ID
-
-        out_dir.mkdir(parents=True, exist_ok=True)
-        out_name = "hunyuandit_%d_%s.png" % (int(time.time()), uuid.uuid4().hex[:8])
-        out_path = out_dir / out_name
+    try:
         image.save(str(out_path), format="PNG")
+    except Exception as e:
+        send({"type": "error", "message": f"Failed to save image: {e}"})
+        sys.exit(1)
 
-        self._report(progress_cb, 100, "Done")
-        print("[HunyuanDiT12Generator] Saved to %s" % out_path)
-        return str(out_path)
+    progress(100, "Done")
+    log(f"Saved to {out_path}")
+    send({"type": "done", "output_path": str(out_path)})
 
-    # ------------------------------------------------------------------
-    # Download helpers
-    # ------------------------------------------------------------------
 
-    def _auto_download(self):
-        self._download_weights()
-
-    def _download_weights(self):
-        from huggingface_hub import snapshot_download
-
-        repo_id        = self.hf_repo or _HF_REPO_ID
-        manifest_skips = list(getattr(self, "hf_skip_prefixes", []) or [])
-        ignore = []
-        for pattern in manifest_skips:
-            ignore.append(pattern)
-            if isinstance(pattern, str) and pattern.endswith("/"):
-                ignore.append(pattern + "*")
-        ignore += ["*.md", "*.txt", "LICENSE", "NOTICE", ".gitattributes"]
-
-        self.model_dir.mkdir(parents=True, exist_ok=True)
-        print("[HunyuanDiT12Generator] Downloading weights from %s ..." % repo_id)
-        snapshot_download(
-            repo_id=repo_id,
-            local_dir=str(self.model_dir),
-            ignore_patterns=ignore,
-        )
-        print("[HunyuanDiT12Generator] Weights downloaded to %s." % self.model_dir)
+if __name__ == "__main__":
+    main()
