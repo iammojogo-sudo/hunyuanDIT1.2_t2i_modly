@@ -6,18 +6,14 @@ from pathlib import Path
 
 IS_WIN = platform.system() == "Windows"
 
-
 def venv_python(venv):
     return venv / ("Scripts/python.exe" if IS_WIN else "bin/python")
-
 
 def pip(venv, *args):
     subprocess.run([str(venv_python(venv)), "-m", "pip"] + list(args), check=True)
 
-
 def setup(python_exe, ext_dir, gpu_sm):
     venv = ext_dir / "venv"
-
     if not venv.exists():
         print("creating venv...")
         subprocess.run([str(python_exe), "-m", "venv", str(venv)], check=True)
@@ -40,7 +36,7 @@ def setup(python_exe, ext_dir, gpu_sm):
     print("installing dependencies...")
     pip(venv, "install",
         "diffusers>=0.29.0",
-        "transformers>=4.40.0",
+        "transformers>=4.40.0,<4.52.0" if gpu_sm < 100 else "transformers>=4.40.0",
         "accelerate>=0.30.0",
         "huggingface_hub>=0.20.0",
         "sentencepiece",
@@ -62,7 +58,6 @@ def setup(python_exe, ext_dir, gpu_sm):
         print("xformers failed, skipping")
 
     print("done")
-
 
 if __name__ == "__main__":
     if len(sys.argv) >= 4:
