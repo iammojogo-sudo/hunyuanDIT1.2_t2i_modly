@@ -36,7 +36,7 @@ def setup(python_exe, ext_dir, gpu_sm):
     print("installing dependencies...")
     pip(venv, "install",
         "diffusers>=0.29.0",
-        "transformers>=4.40.0,<4.52.0" if gpu_sm < 100 else "transformers>=4.40.0",
+        "transformers>=4.51.0,<4.52.0" if gpu_sm < 100 else "transformers>=4.51.0",
         "accelerate>=0.30.0",
         "huggingface_hub>=0.20.0",
         "sentencepiece",

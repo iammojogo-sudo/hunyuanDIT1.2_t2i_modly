@@ -84,8 +84,24 @@ class HunyuanDiT12Generator(BaseGenerator):
 
         prompt = params.get("prompt", "").strip()
         if not prompt:
-            raise ValueError("no prompt — fill in the Prompt field on the node")
+            raise ValueError("no positive prompt — connect a Text node to the first input")
 
+        if _int(params.get("enhance_prompt"), 0):
+            self._report(progress_cb, 3, "enhancing prompt")
+            try:
+                import os
+                here = os.path.dirname(os.path.abspath(__file__))
+                if here not in sys.path:
+                    sys.path.insert(0, here)
+                from prompt_enhancer import get_enhancer
+                device = (params.get("enhancer_device") or "cpu").strip().lower()
+                enhanced = get_enhancer(device=device).enhance(prompt)
+                if enhanced:
+                    prompt = enhanced
+                print("[HunyuanDiT] enhanced prompt -> %s" % prompt)
+            except Exception as e:
+                print("[HunyuanDiT] enhancement failed, using original prompt: %s" % e)
+                
         neg    = params.get("negative_prompt") or None
         width  = _int(params.get("width"), 1024)
         height = _int(params.get("height"), 1024)

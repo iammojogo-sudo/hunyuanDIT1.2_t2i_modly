@@ -4,26 +4,84 @@
   "type": "model",
   "source": "https://github.com/iammojogo-sudo/hunyuanDIT1.2_t2i_modly",
   "description": "Fast text-to-image generation using Tencent HunyuanDiT v1.2 Distilled. Supports English and Chinese prompts. ~6GB VRAM.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "iammojogo",
   "vram_gb": 6,
-  "tags": ["text-to-image", "hunyuan", "t2i"],
+  "tags": [
+    "text-to-image",
+    "hunyuan",
+    "t2i"
+  ],
   "nodes": [
     {
       "id": "generate",
       "name": "Generate Image",
-      "input": "image",
+      "input": "text",
+      "inputs": ["text", "text"],
       "output": "image",
       "hf_repo": "Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers-Distilled",
       "download_check": "model_index.json",
       "params_schema": [
-        { "id": "prompt",          "label": "Prompt",         "type": "string",  "default": "" },
-        { "id": "negative_prompt", "label": "Negative Prompt","type": "string",  "default": "" },
-        { "id": "width",           "label": "Width",          "type": "int",     "default": 1024, "min": 512, "max": 1280 },
-        { "id": "height",          "label": "Height",         "type": "int",     "default": 1024, "min": 512, "max": 1280 },
-        { "id": "steps",           "label": "Steps",          "type": "int",     "default": 25,   "min": 10,  "max": 50   },
-        { "id": "guidance_scale",  "label": "Guidance Scale", "type": "float",   "default": 6.0,  "min": 1.0, "max": 10.0 },
-        { "id": "seed",            "label": "Seed",           "type": "int",     "default": 0,    "min": 0,   "max": 4294967295 }
+		{
+		  "id": "enhance_prompt",
+		  "label": "Enhance Prompt (LLM)",
+		  "type": "select",
+		  "default": "0",
+		  "options": [
+			{ "value": "1", "label": "Enabled" },
+			{ "value": "0", "label": "Disabled" }
+		  ]
+		},
+		{
+		  "id": "enhancer_device",
+		  "label": "Enhancer Device",
+		  "type": "select",
+		  "default": "cpu",
+		  "options": [
+			{ "value": "cpu",  "label": "CPU" },
+			{ "value": "cuda", "label": "CUDA" }
+		  ]
+		},
+        {
+          "id": "width",
+          "label": "Width",
+          "type": "int",
+          "default": 1024,
+          "min": 512,
+          "max": 1280
+        },
+        {
+          "id": "height",
+          "label": "Height",
+          "type": "int",
+          "default": 1024,
+          "min": 512,
+          "max": 1280
+        },
+        {
+          "id": "steps",
+          "label": "Steps",
+          "type": "int",
+          "default": 25,
+          "min": 10,
+          "max": 50
+        },
+        {
+          "id": "guidance_scale",
+          "label": "Guidance Scale",
+          "type": "float",
+          "default": 6,
+          "min": 1,
+          "max": 10
+        },
+        {
+          "id": "seed",
+          "label": "Seed",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 4294967295
+        }
       ]
     }
   ],
