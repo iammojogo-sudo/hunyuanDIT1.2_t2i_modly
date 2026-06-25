@@ -4,7 +4,7 @@
   "type": "model",
   "source": "https://github.com/iammojogo-sudo/hunyuanDIT1.2_t2i_modly",
   "description": "Fast text-to-image generation using Tencent HunyuanDiT v1.2 Distilled. Supports English and Chinese prompts. ~6GB VRAM.",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "author": "iammojogo",
   "vram_gb": 6,
   "tags": [
@@ -16,32 +16,36 @@
     {
       "id": "generate",
       "name": "Generate Image",
-      "input": "text",
-      "inputs": ["text", "text"],
       "output": "image",
       "hf_repo": "Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers-Distilled",
       "download_check": "model_index.json",
       "params_schema": [
-		{
-		  "id": "enhance_prompt",
-		  "label": "Enhance Prompt (LLM)",
-		  "type": "select",
-		  "default": "0",
-		  "options": [
-			{ "value": "1", "label": "Enabled" },
-			{ "value": "0", "label": "Disabled" }
-		  ]
-		},
-		{
-		  "id": "enhancer_device",
-		  "label": "Enhancer Device",
-		  "type": "select",
-		  "default": "cpu",
-		  "options": [
-			{ "value": "cpu",  "label": "CPU" },
-			{ "value": "cuda", "label": "CUDA" }
-		  ]
-		},
+        {
+          "id": "prompt",
+          "label": "Prompt",
+          "type": "string",
+          "default": "",
+          "multiline": true,
+          "tooltip": "Describe the image you want to generate."
+        },
+        {
+          "id": "enhance_prompt",
+          "label": "Enhance Prompt (LLM)",
+          "type": "select",
+          "default": "0",
+          "options": [
+            { "value": "1", "label": "Enabled" },
+            { "value": "0", "label": "Disabled" }
+          ]
+        },
+        {
+          "id": "negative_prompt",
+          "label": "Negative Prompt",
+          "type": "string",
+          "default": "",
+          "multiline": true,
+          "tooltip": "Describe what you do NOT want in the image."
+        },
         {
           "id": "width",
           "label": "Width",
