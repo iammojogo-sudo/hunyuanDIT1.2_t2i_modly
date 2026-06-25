@@ -3,7 +3,7 @@
   "name": "HunyuanDiT v1.2 Text-to-Image",
   "type": "model",
   "source": "https://github.com/iammojogo-sudo/hunyuanDIT1.2_t2i_modly",
-  "description": "Fast text-to-image generation using Tencent HunyuanDiT v1.2 Distilled. Supports English and Chinese prompts. ~6GB VRAM.",
+  "description": "Fast text-to-image generation using Tencent HunyuanDiT v1.2 Distilled. Prompts are entered directly as text fields on the node — no wire inputs required. Supports English and Chinese prompts. ~6GB VRAM.",
   "version": "1.2.0",
   "author": "iammojogo",
   "vram_gb": 6,
